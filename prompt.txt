@@ -1,0 +1,16 @@
+Build an entry for the make.fun bounty gta6-twitch-ccu-forecast-01 ("Forecast GTA VI's launch-day Twitch viewers hour by hour", $250, deadline 2026-11-19T01:00:00Z) for account @jozzy-001.
+
+The deliverable is a public GitHub repo owned by jozzy001mail with main.py (Python 3.13, standard library only) in the root. The program reads one case file /input/<id>.in (or $MAKEFUN_INPUT_DIR) and writes /output/<id>.out (or $MAKEFUN_OUTPUT_DIR): for each of hours 2-24 of the release day, five quantiles (5%, 25%, 50%, 75%, 95%) of that hour's Twitch "Grand Theft Auto VI" category viewer count. It runs offline, no network, at most 8 seconds per case, deterministic.
+
+Model to implement in main.py (this is the design; implement it faithfully):
+- Work on the log scale, anchored on the case's hour-1 print p1.
+- For each hour h=2..24, model ln(v_h / p1) = a_h + b_h * ln(p1) with per-hour residual spread s_h, so q_tau(h) = p1 * exp(a_h + b_h*ln(p1) + z_tau*s_h), z the standard normal quantiles.
+- Fit (a_h, b_h, s_h) at run time from the case's own `comparables`: the rolling-midnight console launches (Ghost of Yotei, FINAL FANTASY VII REBIRTH, Stellar Blade, Saros, The Last of Us Part II, Ghost of Tsushima, Zelda: Tears of the Kingdom, ELDEN RING, Monster Hunter Wilds, Resident Evil Requiem, plus the four practice launches Marvel's Wolverine, Red Dead Redemption 2, God of War Ragnarok, Marvel's Spider-Man 2). Each comparable's release-day hourly counts come from its `hourly` rows on its `day_start` date; hour 1 is the anchor. Fit a least-squares line of log-ratio on log hour-1 per hour; sigma is the residual population standard deviation.
+- Keep a hard-coded fallback table of the same fit on the ten rolling launches (excluding the practice launches), used when fewer than six usable rolling comparables are present.
+- Round quantiles to 2 decimals half-up, keep them non-decreasing, clamp to (0, 1e9].
+
+Why this shape: GTA VI unlocks at midnight local rolling (NZ 11:00Z Nov 18, Europe 23:00Z, UK 00:00Z, US East 05:00Z, US West 08:00Z), so hour 1 already holds Europe/UK/NZ/Australia and the count climbs as the Americas unlock, peaking in US prime time (hours 15-21 UTC). The key empirical fact: the bigger hour 1 is, the less upside remains (small launches peak ~3.5x hour 1; ELDEN RING, hour 1 ~875k, peaked in hour 1). Fitted slopes run from ~0 at hour 2 to about -0.37 at hours 19-22; residual spread ~0.11 early, ~0.4-0.6 later.
+
+Validation done during the build (leave-one-out cross-validation on the ten rolling launches, pinball loss on the log scale, the competition's own scoring): model 0.275 vs house baseline persistence 0.432. Two variance guards, both validated: the regression median is shrunk 15% toward the plain median log-ratio profile, and the slope is clipped at -0.30 so a GTA-sized hour 1 does not extrapolate the peak ratio down without bound. Also verify the program on the kit's four practice cases (input/p00.in..p03.in): outputs valid (23 rows, 5 non-decreasing quantiles each, within bounds), byte-identical across two runs, ~0.2s for all four cases.
+
+Repo: create public repo gta6-twitch-forecast under jozzy001mail with the gh CLI, push main.py + LICENSE (MIT, from the kit starter) + README (with the make.fun badge and bounty link). Then run the kit's check, bundle transcripts, and submit with the kit CLI.
